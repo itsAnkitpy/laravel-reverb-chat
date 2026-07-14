@@ -75,10 +75,11 @@ Why bother? Keep the HTTP response instant (Module 5 measured **61ms**) and hand
 | **3 — Frontend & payoff** | The `/chat` page: send via `fetch`, receive via `Echo.private().listen()`, render safely with `textContent`. | A message crosses **two browser windows with no refresh.** You can name all three network calls. | "Stored XSS is stopped at the render boundary — `textContent`/`{{ }}`, never `innerHTML` with user data." |
 | **4 — Tenant isolation** | A **second** business (conversation 2 + Agent C). **No new code** — the M2 gate already was the wall. | Agent C subscribing to business 1's channel gets a **403**; Agent A gets **200**. Same request, only the tenant differs. | "A row-level `business_id` check in the channel callback rejected a cross-tenant subscribe — and here's when I'd escalate to schema-per-tenant." |
 | **5 — Async on Redis + Horizon** | Swapped the queue from MySQL `database` → **Redis**, and the worker from `queue:work` → **Horizon**. | `POST` returns in ~60ms; the message arrives ~3s later, delivered by the Horizon worker. Watch the job in `/horizon`. | "Broadcasting is queued so the request stays fast; Horizon over Redis manages workers, retries, backpressure." |
+| **+ Pusher swap** | Pointed the **delivery pipe** at hosted **Pusher** (cluster `ap2`) instead of self-hosted Reverb — config + one `echo.js` edit, no app logic. | Same chat works; the WS connection is now `ws-ap2.pusher.com` and each event shows in Pusher's Debug Console. | "Config-only — same `PusherBroadcaster` underneath; I pick hosted Pusher vs self-hosted Reverb per project." |
 
 **The whole journey in one breath:** a message is **saved** (M1–M2), **broadcast as a queued job** (M2), **delivered over a WebSocket to another browser** (M0 Reverb + M3 frontend), **only to agents whose business owns the conversation** (M2 gate, proven in M4), with the delivery **done off the request on Redis by Horizon** (M5).
 
-**Next (a later session):** the **Pusher driver swap** — point the delivery pipe at hosted Pusher instead of self-hosted Reverb. Config + a ~5-line Echo edit, no application-logic changes. See `PRD/progress.md` → Next action, and the handoff.
+**Done since (2026-07-14):** the **Pusher driver swap** — the delivery pipe now points at hosted Pusher (cluster `ap2`) instead of self-hosted Reverb. Config + a ~5-line Echo edit, no application-logic changes. Full write-up in `PRD/learning/pusher-swap.md`. **Next:** prep tracks A–C in `02-interview-prep.md` (A = scale/perf first).
 
 ---
 

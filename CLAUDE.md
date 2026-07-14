@@ -25,9 +25,10 @@ A **throwaway learning build**, not a product. Purpose: let Ankit *watch a chat 
 - ✅ **Module 4 done** — seeded business 2 (conv2 + Agent C #3, `business_id=2`). No new gate code — `channels.php` from M2 already is the wall. Proved on the wire: Agent A→`conversation.1`=**200**+token, Agent C→`conversation.1`=**403** (`AccessDeniedHttpException`). Details in `PRD/learning/module-4.md`.
 - ✅ **Module 5 done** — broadcast now async on **Redis 8.8.0 + Horizon** (`QUEUE_CONNECTION=redis`, `REDIS_CLIENT=predis`). Demo `sleep(3)`+logs in `MessageSent::broadcastWith` (worker-side, remove later). Measured `POST /messages`=200 in 0.061s while the worker delivered ~3s later. Dashboard at `/horizon`. Details in `PRD/learning/module-5.md`.
 - ✅ **2026-07-11 code review** — cross-tenant **write** hole in `POST /messages` found & fixed (store() now scopes the conversation to the sender's business → foreign id = 404; wire-verified C→conv1=404, C→conv2=200, A→conv1=200). Missed-messages gap + unbounded history query documented as lessons (not built) in `PRD/learning/review-findings.md`.
-- ⬜ **Next → optional** — Pusher driver swap (~10 min, config-only, JD-named), then prep tracks A–C in `02-interview-prep.md`. Module 6 (typing) only if time.
+- ✅ **Pusher driver swap done (2026-07-14)** — live broadcast driver flipped to hosted **Pusher** (`BROADCAST_CONNECTION=pusher`, cluster `ap2`). Config-only, zero app-logic change (no composer install, no `broadcasting.php` edit). Verified on the wire: WS to `ws-ap2.pusher.com`, broadcast published with 0 errors. Reverb stays wired; flip back anytime. Details in `PRD/learning/pusher-swap.md`.
+- ⬜ **Next → optional** — prep tracks A–C in `02-interview-prep.md` (A = scale/perf, highest JD weight). Module 6 (typing) only if time. Cleanup: drop the demo `sleep(3)` in `MessageSent::broadcastWith`.
 
-Note: stack line below still says SQLite in the original pin — actual DB is now MySQL `chatway` (see decisions log 2026-07-10).
+Note: the "Stack (pinned)" line below still shows the original pins — actual DB is now MySQL `chatway` (decisions log 2026-07-10) and the live broadcast driver is now **Pusher** (decisions log 2026-07-14). Reverb stays wired; the swap is config-only.
 
 ## Stack (pinned — do not change)
 
@@ -42,7 +43,8 @@ npm run dev               # terminal 1 — Vite (frontend build/watch)
 php artisan reverb:start  # terminal 2 — WebSocket server on :8080
 php artisan horizon       # terminal 3 — drains queued broadcasts off Redis (Module 5; replaced the old queue:work)
 ```
-> Horizon caches code at boot: after editing an event/job, `php artisan horizon:terminate` then start it again.
+> With the **Pusher** driver active (current default), skip `php artisan reverb:start` — Pusher's cloud is the WebSocket server. Only run Reverb if you flip `BROADCAST_CONNECTION` back to `reverb`.
+> Horizon caches code **and config** at boot: after editing an event/job **or changing `.env`** (e.g. the driver swap), `php artisan horizon:terminate` then start it again.
 
 ## Guardrails / gotchas (don't repeat)
 

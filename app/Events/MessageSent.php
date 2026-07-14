@@ -8,7 +8,6 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 // ShouldBroadcast (NOT ShouldBroadcastNow) => the broadcast is QUEUED.
 // The HTTP response returns immediately; a worker does the Reverb push later.
@@ -31,17 +30,6 @@ class MessageSent implements ShouldBroadcast
     // whole model — never broadcast columns the client shouldn't see.
     public function broadcastWith(): array
     {
-        // --- Module 5 demo ONLY (remove after the lesson) ---
-        // This method runs inside the QUEUE WORKER (Horizon), not the HTTP
-        // request. The log line + 3s sleep make the async gap physical: the
-        // POST /messages response is already back in your browser while this
-        // job is still sleeping here; the message reaches the other window ~3s
-        // later, the moment this returns and the Reverb push fires.
-        Log::info('[Module 5] worker START broadcasting message #'.$this->message->id.' at '.now()->format('H:i:s.v'));
-        sleep(3);
-        Log::info('[Module 5] worker DONE  broadcasting message #'.$this->message->id.' at '.now()->format('H:i:s.v'));
-        // --- end demo ---
-
         return [
             'id'      => $this->message->id,
             'body'    => $this->message->body,

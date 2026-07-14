@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realtime Chat — Visual Walkthrough (M0→M5)</title>
+<style>
+  /* ---------- Theme tokens ---------- */
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5; --ink:#1c2530; --ink-soft:#55606d;
+    --line:#d9dee6; --line-strong:#c2cad4; --accent:#3457d5; --accent-ink:#213a9a;
+    /* semantic roles */
+    --save:#1f9d67; --save-bg:#e7f7ef;
+    --event:#7b52c9; --event-bg:#f1ebfb;
+    --queue:#c9871f; --queue-bg:#fbf1dd;
+    --pipe:#1f83c9; --pipe-bg:#e3f2fb;
+    --client:#5b6672; --client-bg:#eef1f5;
+    --gate:#d0453f; --gate-bg:#fbe8e7;
+    --gold:#b7791f; --gold-bg:#fcf3e2;
+    --code-bg:#f0f2f6; --code-ink:#2a3542;
+    --shadow:0 1px 2px rgba(20,30,45,.06), 0 4px 14px rgba(20,30,45,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1319; --surface:#171d26; --surface-2:#1e2632; --ink:#e6ebf1; --ink-soft:#9aa6b4;
+      --line:#28323f; --line-strong:#38465a; --accent:#7f9cff; --accent-ink:#a9bcff;
+      --save:#4dd39b; --save-bg:#123024;
+      --event:#b298f0; --event-bg:#241a3a;
+      --queue:#e6b45a; --queue-bg:#332609;
+      --pipe:#5db8ef; --pipe-bg:#0e2c3f;
+      --client:#9aa6b4; --client-bg:#1e2632;
+      --gate:#f0837c; --gate-bg:#3a1614;
+      --gold:#e6b45a; --gold-bg:#2e2409;
+      --code-bg:#111722; --code-ink:#cdd7e3;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+      --bg:#0f1319; --surface:#171d26; --surface-2:#1e2632; --ink:#e6ebf1; --ink-soft:#9aa6b4;
+      --line:#28323f; --line-strong:#38465a; --accent:#7f9cff; --accent-ink:#a9bcff;
+      --save:#4dd39b; --save-bg:#123024; --event:#b298f0; --event-bg:#241a3a;
+      --queue:#e6b45a; --queue-bg:#332609; --pipe:#5db8ef; --pipe-bg:#0e2c3f;
+      --client:#9aa6b4; --client-bg:#1e2632; --gate:#f0837c; --gate-bg:#3a1614;
+      --gold:#e6b45a; --gold-bg:#2e2409; --code-bg:#111722; --code-ink:#cdd7e3;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+      --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5; --ink:#1c2530; --ink-soft:#55606d;
+      --line:#d9dee6; --line-strong:#c2cad4; --accent:#3457d5; --accent-ink:#213a9a;
+      --save:#1f9d67; --save-bg:#e7f7ef; --event:#7b52c9; --event-bg:#f1ebfb;
+      --queue:#c9871f; --queue-bg:#fbf1dd; --pipe:#1f83c9; --pipe-bg:#e3f2fb;
+      --client:#5b6672; --client-bg:#eef1f5; --gate:#d0453f; --gate-bg:#fbe8e7;
+      --gold:#b7791f; --gold-bg:#fcf3e2; --code-bg:#f0f2f6; --code-ink:#2a3542;
+      --shadow:0 1px 2px rgba(20,30,45,.06), 0 4px 14px rgba(20,30,45,.05);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  code,pre,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+
+  /* ---------- Layout ---------- */
+  .wrap{display:grid; grid-template-columns:260px minmax(0,1fr); gap:0; max-width:1280px; margin:0 auto}
+  aside{
+    position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+    padding:26px 18px 40px; border-right:1px solid var(--line);
+  }
+  aside .brand{font-weight:700; font-size:15px; letter-spacing:.2px; margin-bottom:2px}
+  aside .brand small{display:block; font-weight:500; color:var(--ink-soft); font-size:12px; margin-top:3px}
+  nav a{
+    display:block; padding:6px 10px; margin:1px 0; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:13.5px; border-left:2px solid transparent;
+  }
+  nav a:hover{background:var(--surface-2); color:var(--ink)}
+  nav a.active{color:var(--ink); background:var(--surface-2); border-left-color:var(--accent); font-weight:600}
+  nav .grp{font-size:11px; text-transform:uppercase; letter-spacing:.7px; color:var(--ink-soft); margin:16px 0 4px 10px; opacity:.7}
+
+  main{padding:34px clamp(18px,4vw,56px) 120px; min-width:0}
+  section{margin:0 0 60px; scroll-margin-top:20px}
+  .lead-in{max-width:74ch}
+
+  /* ---------- Typography ---------- */
+  h1{font-size:clamp(26px,3.4vw,38px); line-height:1.15; margin:0 0 10px; letter-spacing:-.4px}
+  h2{font-size:clamp(20px,2.4vw,26px); margin:0 0 6px; letter-spacing:-.2px; display:flex; align-items:baseline; gap:10px}
+  h2 .num{font-size:13px; font-weight:700; color:var(--accent); background:var(--surface-2); border:1px solid var(--line); padding:2px 9px; border-radius:20px; letter-spacing:.5px}
+  h3{font-size:16.5px; margin:26px 0 8px}
+  p{margin:10px 0}
+  .sub{color:var(--ink-soft)}
+  .kicker{text-transform:uppercase; letter-spacing:1.4px; font-size:12px; font-weight:700; color:var(--accent); margin-bottom:8px}
+  a.inline{color:var(--accent); text-decoration:none; border-bottom:1px solid color-mix(in oklab,var(--accent) 40%, transparent)}
+  a.inline:hover{border-bottom-color:var(--accent)}
+
+  /* ---------- Header bar ---------- */
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:26px; flex-wrap:wrap}
+  .chips{display:flex; flex-wrap:wrap; gap:7px}
+  .chip{font-size:12px; padding:4px 10px; border-radius:20px; background:var(--surface); border:1px solid var(--line); color:var(--ink-soft)}
+  .chip b{color:var(--ink); font-weight:600}
+  .toggle{cursor:pointer; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); border-radius:8px; padding:7px 12px; font-size:13px}
+  .toggle:hover{color:var(--ink); border-color:var(--line-strong)}
+
+  /* ---------- Cards / callouts ---------- */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow)}
+  .callout{border-radius:12px; padding:14px 16px; margin:16px 0; border:1px solid var(--line); background:var(--surface)}
+  .callout .lbl{font-size:11.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; display:block; margin-bottom:5px}
+  .callout p{margin:4px 0}
+  .callout--interview{background:var(--gold-bg); border-color:color-mix(in oklab,var(--gold) 45%, var(--line))}
+  .callout--interview .lbl{color:var(--gold)}
+  .callout--interview .quote{font-style:italic}
+  .callout--gotcha{background:var(--queue-bg); border-color:color-mix(in oklab,var(--queue) 40%, var(--line))}
+  .callout--gotcha .lbl{color:var(--queue)}
+  .callout--fixed{background:var(--save-bg); border-color:color-mix(in oklab,var(--save) 40%, var(--line))}
+  .callout--fixed .lbl{color:var(--save)}
+  .callout--danger{background:var(--gate-bg); border-color:color-mix(in oklab,var(--gate) 40%, var(--line))}
+  .callout--danger .lbl{color:var(--gate)}
+
+  /* ---------- Side-by-side (diagram | prose) ---------- */
+  .split{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:26px; align-items:center; margin:20px 0}
+  .split.rev{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}
+  .split .viz{min-width:0}
+  @media (max-width:820px){ .split,.split.rev{grid-template-columns:1fr} }
+
+  /* ---------- Flow diagram primitives ---------- */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin:6px 0}
+  .flow.v{flex-direction:column; align-items:stretch}
+  .node{
+    background:var(--surface); border:1.5px solid var(--line-strong); border-radius:11px;
+    padding:11px 13px; min-width:0; box-shadow:var(--shadow); position:relative; flex:0 1 auto;
+  }
+  .node .t{font-weight:650; font-size:13.5px; display:flex; align-items:center; gap:7px}
+  .node .d{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.5}
+  .node .tag{font-size:10.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; padding:2px 6px; border-radius:5px; background:var(--surface-2); color:var(--ink-soft)}
+  .node.wide{flex:1 1 100%}
+  .node.mono .t{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px}
+
+  .node--save{border-color:var(--save); background:var(--save-bg)}
+  .node--event{border-color:var(--event); background:var(--event-bg)}
+  .node--queue{border-color:var(--queue); background:var(--queue-bg)}
+  .node--pipe{border-color:var(--pipe); background:var(--pipe-bg)}
+  .node--client{border-color:var(--line-strong); background:var(--client-bg)}
+  .node--gate{border-color:var(--gate); background:var(--gate-bg)}
+
+  .arr{display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:18px; padding:0 2px; flex:0 0 auto}
+  .flow.v .arr{padding:2px 0; transform:rotate(90deg)}
+  .arr small{font-size:10px; margin-left:2px}
+  .arr.lbl-arr{flex-direction:column; font-size:16px; line-height:1}
+  .arr .cap{font-size:10px; color:var(--ink-soft); white-space:nowrap}
+
+  /* horizontal scroll safety for wide diagrams */
+  .scroll-x{overflow-x:auto; padding-bottom:6px}
+  .scroll-x .flow{flex-wrap:nowrap; min-width:min-content}
+
+  /* legend */
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:14px 0 0; font-size:12.5px}
+  .legend span{display:inline-flex; align-items:center; gap:7px; color:var(--ink-soft)}
+  .sw{width:14px; height:14px; border-radius:4px; border:1.5px solid}
+  .sw.s{background:var(--save-bg); border-color:var(--save)}
+  .sw.e{background:var(--event-bg); border-color:var(--event)}
+  .sw.q{background:var(--queue-bg); border-color:var(--queue)}
+  .sw.p{background:var(--pipe-bg); border-color:var(--pipe)}
+  .sw.c{background:var(--client-bg); border-color:var(--line-strong)}
+  .sw.g{background:var(--gate-bg); border-color:var(--gate)}
+
+  /* code */
+  code:not(pre code){background:var(--code-bg); color:var(--code-ink); padding:1.5px 6px; border-radius:5px; font-size:.86em; border:1px solid var(--line)}
+  pre{background:var(--code-bg); color:var(--code-ink); border:1px solid var(--line); border-radius:10px; padding:14px 16px; overflow-x:auto; font-size:13px; line-height:1.55; margin:14px 0}
+  pre .c{color:var(--ink-soft)}
+  pre .k{color:var(--event)}
+  pre .g{color:var(--save)}
+  pre .r{color:var(--gate)}
+
+  /* tables */
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:13.5px; overflow:hidden; border-radius:10px; box-shadow:var(--shadow)}
+  .tbl-wrap{overflow-x:auto}
+  th,td{text-align:left; padding:10px 13px; border-bottom:1px solid var(--line); vertical-align:top}
+  thead th{background:var(--surface-2); font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-soft)}
+  tbody tr{background:var(--surface)}
+  tbody tr:last-child td{border-bottom:none}
+  td b{font-weight:650}
+  .ok{color:var(--save); font-weight:700}
+  .no{color:var(--gate); font-weight:700}
+
+  /* module strip / timeline */
+  .timeline{display:flex; gap:0; flex-wrap:wrap; margin:18px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:var(--shadow)}
+  .tl{flex:1 1 150px; padding:13px 15px; border-right:1px solid var(--line); background:var(--surface)}
+  .tl:last-child{border-right:none}
+  .tl .m{font-size:11px; font-weight:700; letter-spacing:.5px; color:var(--accent); text-transform:uppercase}
+  .tl .h{font-weight:650; font-size:13.5px; margin:3px 0}
+  .tl .x{font-size:12px; color:var(--ink-soft)}
+
+  /* pill row */
+  .status{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:20px; letter-spacing:.3px}
+  .status.done{background:var(--save-bg); color:var(--save); border:1px solid color-mix(in oklab,var(--save) 40%,var(--line))}
+  .status.opt{background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--line)}
+
+  .note{font-size:13px; color:var(--ink-soft); border-left:3px solid var(--line-strong); padding:2px 0 2px 14px; margin:14px 0}
+
+  hr{border:none; border-top:1px solid var(--line); margin:34px 0}
+
+  /* two windows demo */
+  .windows{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; margin:12px 0}
+  @media (max-width:560px){ .windows{grid-template-columns:1fr} }
+  .win{border:1.5px solid var(--line-strong); border-radius:11px; overflow:hidden; box-shadow:var(--shadow); background:var(--surface)}
+  .win .bar{background:var(--surface-2); padding:6px 10px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--line)}
+  .win .bar .dot{width:9px; height:9px; border-radius:50%; background:var(--gate); opacity:.5}
+  .win .body{padding:10px 12px; font-size:12.5px; min-height:52px}
+  .win .msg{background:var(--pipe-bg); border:1px solid color-mix(in oklab,var(--pipe) 35%,var(--line)); border-radius:8px; padding:5px 9px; display:inline-block}
+
+  footer{color:var(--ink-soft); font-size:13px; border-top:1px solid var(--line); padding-top:20px; margin-top:40px}
+
+  /* mobile nav */
+  .mobnav{display:none}
+  @media (max-width:900px){
+    .wrap{grid-template-columns:1fr}
+    aside{display:none}
+    .mobnav{display:block; position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--line); padding:10px 16px}
+    .mobnav details summary{cursor:pointer; font-weight:600; font-size:14px; list-style:none}
+    .mobnav details summary::-webkit-details-marker{display:none}
+    .mobnav nav{display:flex; flex-wrap:wrap; gap:4px; margin-top:10px}
+    .mobnav nav a{font-size:12.5px; padding:4px 8px}
+    .mobnav .grp{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="mobnav">
+  <details>
+    <summary>☰ &nbsp;Jump to a section</summary>
+    <nav id="mobnav-links"></nav>
+  </details>
+</div>
+
+<div class="wrap">
+  <!-- ============ SIDEBAR ============ -->
+  <aside>
+    <div class="brand">Realtime Chat — Visual Walkthrough
+      <small>How a message travels, module by module</small>
+    </div>
+    <nav id="toc">
+      <div class="grp">Foundations</div>
+      <a href="#intro">The one big idea</a>
+      <a href="#cast">The cast of characters</a>
+      <a href="#flow">The whole flow, end to end</a>
+      <div class="grp">Build modules</div>
+      <a href="#m0">M0 · Setup</a>
+      <a href="#m1">M1 · Data model</a>
+      <a href="#m2">M2 · Broadcast the message</a>
+      <a href="#m3">M3 · Frontend &amp; payoff</a>
+      <a href="#m4">M4 · Tenant isolation</a>
+      <a href="#m5">M5 · Redis + Horizon</a>
+      <a href="#pusher">＋ Pusher swap</a>
+      <div class="grp">The deep cuts</div>
+      <a href="#transitions">How it evolved</a>
+      <a href="#calls">The 3 network calls</a>
+      <a href="#wall">The tenant wall</a>
+      <a href="#review">Code-review findings</a>
+      <div class="grp">Reference</div>
+      <a href="#run">Run it yourself</a>
+      <a href="#glossary">Glossary</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+
+    <div class="topbar">
+      <div class="chips">
+        <span class="chip"><b>Laravel</b> 11.54</span>
+        <span class="chip"><b>PHP</b> 8.4</span>
+        <span class="chip"><b>MySQL</b> chatway</span>
+        <span class="chip"><b>Pusher</b> ap2 · <span class="sub">Reverb swappable</span></span>
+        <span class="chip"><b>Redis</b> + Horizon</span>
+        <span class="chip">Blade + vanilla JS</span>
+      </div>
+      <button class="toggle" id="themeBtn" title="Toggle light / dark">◐ Theme</button>
+    </div>
+
+    <!-- ============ INTRO ============ -->
+    <section id="intro">
+      <div class="kicker">Chatway interview prep · a throwaway learning build</div>
+      <h1>Watch a chat message travel, end&nbsp;to&nbsp;end.</h1>
+      <p class="lead-in sub">This app exists for one reason: to make real-time broadcasting stop being theory. A message goes
+        <b>save → event → broadcast → queue → worker → Reverb → an authorized channel → the other browser</b> — and every
+        step below is something we actually ran and watched move. This page is the whole journey in diagrams, with the plain-language version sitting right beside each one.</p>
+
+      <div class="split" style="margin-top:26px">
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:10px">A normal web page = posting letters</div>
+          <div class="flow">
+            <div class="node node--client"><div class="t">🧑 Browser</div><div class="d">“give me the page”</div></div>
+            <div class="arr">→</div>
+            <div class="node"><div class="t">🖥️ Server</div><div class="d">mails a reply</div></div>
+            <div class="arr">→</div>
+            <div class="node node--client"><div class="t">🧑 Browser</div><div class="d">done. conversation over.</div></div>
+          </div>
+          <p class="note" style="margin-top:14px">If a new message lands a second later, the browser has no idea. It would have to <b>ask again</b> (refresh).</p>
+
+          <div style="font-weight:650; font-size:13px; margin:20px 0 10px">Real-time chat = an open phone line</div>
+          <div class="flow">
+            <div class="node node--client"><div class="t">🧑 Browser A</div></div>
+            <div class="arr lbl-arr">↔<span class="cap">WebSocket</span></div>
+            <div class="node node--pipe"><div class="t">📻 Reverb</div><div class="d">holds the open line</div></div>
+            <div class="arr lbl-arr">↔<span class="cap">WebSocket</span></div>
+            <div class="node node--client"><div class="t">🧑 Browser B</div></div>
+          </div>
+          <p class="note" style="margin-top:14px">The line stays open. The instant a message lands on the server, it <b>speaks up</b> and the browser hears it — no asking, no refresh.</p>
+        </div>
+        <div class="prose">
+          <h3>The single idea behind everything</h3>
+          <p>A <b>WebSocket</b> is an always-open, two-way connection between a browser and the server — the “open phone line.” Everything in this project is machinery that makes that line work: something to <em>hold</em> it open (Reverb), something to <em>speak</em> into it (broadcasting an event), something to <em>listen</em> in each tab (Echo), and a <em>bouncer</em> deciding who’s allowed to tune in.</p>
+          <div class="callout">
+            <span class="lbl">What you’ll be able to say, from memory</span>
+            <p>1 · Trace a message: save → event → broadcast → Reverb → authorized channel → other browser.</p>
+            <p>2 · Explain the private-channel auth handshake (<code>/broadcasting/auth</code> + <code>channels.php</code>).</p>
+            <p>3 · Show <b>why one company can’t hear another’s messages</b> — the founder’s top concern.</p>
+            <p>4 · Explain <b>why the broadcast runs on a queue</b>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend" aria-label="colour legend">
+        <span><i class="sw s"></i> Save / database (a fact)</span>
+        <span><i class="sw e"></i> Event / broadcast</span>
+        <span><i class="sw q"></i> Queue / Redis (do-it-later)</span>
+        <span><i class="sw p"></i> Delivery pipe (Reverb)</span>
+        <span><i class="sw g"></i> Gate / tenant security</span>
+        <span><i class="sw c"></i> Browser / client</span>
+      </div>
+    </section>
+
+    <!-- ============ CAST ============ -->
+    <section id="cast">
+      <h2><span class="num">CAST</span> The characters, and what each one actually does</h2>
+      <p class="lead-in sub">Think of a small radio station. Each piece has a plain-language job — learn these once and every later diagram reads itself.</p>
+
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Piece</th><th>Plain-language role</th><th>Real name</th></tr></thead>
+        <tbody>
+          <tr><td><b>The switchboard</b></td><td>A separate program holding every open phone line, relaying announcements to the right listeners. Runs beside Laravel as its own process.</td><td><b style="color:var(--pipe)">Reverb</b> (a WebSocket server)</td></tr>
+          <tr><td><b>The announcement</b></td><td>“A new message was just saved!” — the server shouting a fact to whoever’s listening.</td><td><b style="color:var(--event)">Broadcasting</b> an <b style="color:var(--event)">event</b></td></tr>
+          <tr><td><b>The frequency</b></td><td>A named radio frequency. Only authorized people may tune in.</td><td>A <b>channel</b> (<code>conversation.1</code>)</td></tr>
+          <tr><td><b>The receiver</b></td><td>A little radio in each browser tab, tuned to a channel, reacting the instant it hears something.</td><td><b style="color:var(--pipe)">Laravel Echo</b></td></tr>
+          <tr><td><b>The bouncer</b></td><td>Checks your company ID before letting you tune into a private frequency.</td><td><b style="color:var(--gate)">routes/channels.php</b></td></tr>
+          <tr><td><b>The outbox + courier</b></td><td>Slow, failable delivery isn’t done inside the web request. A job waits in an outbox; a courier delivers it later.</td><td><b style="color:var(--queue)">Queue + worker</b> (Redis + Horizon)</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="split rev" style="margin-top:24px">
+        <div class="prose">
+          <h3>Why learning on Reverb still teaches you Pusher</h3>
+          <p>Reverb, Pusher, and Ably are three interchangeable <b>brands</b> of switchboard that all speak the <em>same protocol</em>. We picked Reverb because it’s free, runs locally with one command, and needs no signup — but the browser code is <b>identical</b> if we later flip to Pusher (the tool the job posting names). Swapping is config-only.</p>
+          <p class="note">This is also why, in a stack trace, you’ll see the class <code>PusherBroadcaster</code> even though we run Reverb — Reverb speaks the Pusher protocol, so Laravel authorizes through the same code path.</p>
+        </div>
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">The system map</div>
+          <div class="flow v">
+            <div class="flow" style="justify-content:center">
+              <div class="node node--client"><div class="t">🧑 Browser A</div><div class="d">Echo receiver, tuned in</div></div>
+              <div class="arr lbl-arr">↕<span class="cap">WS</span></div>
+              <div class="node node--pipe"><div class="t">📻 Reverb :8080</div><div class="d">the delivery pipe</div></div>
+              <div class="arr lbl-arr">↕<span class="cap">WS</span></div>
+              <div class="node node--client"><div class="t">🧑 Browser B</div></div>
+            </div>
+            <div class="arr">↑</div>
+            <div class="node node--event wide"><div class="t">🖥️ Laravel — “announce this event”</div><div class="d">…but only after the bouncer approved the listener</div></div>
+            <div class="flow" style="justify-content:center; margin-top:6px">
+              <div class="node node--gate"><div class="t">🛂 channels.php</div><div class="d">bouncer at <code>/broadcasting/auth</code></div></div>
+              <div class="node node--queue"><div class="t">📮 Redis + Horizon</div><div class="d">outbox + courier</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ THE WHOLE FLOW ============ -->
+    <section id="flow">
+      <h2><span class="num">THE FLOW</span> One message, from keystroke to the other screen</h2>
+      <p class="lead-in sub">This is the money diagram — the thing the whole project exists to make visible. Read it left to right. The green split is the key insight: the HTTP response leaves <b>before</b> delivery even starts.</p>
+
+      <div class="card scroll-x" style="margin:18px 0">
+        <div class="flow" style="flex-wrap:nowrap; min-width:min-content">
+          <div class="node node--client"><span class="tag">1</span><div class="t" style="margin-top:5px">🧑 Agent A types</div><div class="d">hits Send</div></div>
+          <div class="arr">→</div>
+          <div class="node mono"><span class="tag">2</span><div class="t" style="margin-top:5px">POST /messages</div><div class="d">validate body + conversation</div></div>
+          <div class="arr">→</div>
+          <div class="node node--save"><span class="tag">3</span><div class="t" style="margin-top:5px">💾 SAVE row</div><div class="d">now it’s a permanent fact</div></div>
+          <div class="arr lbl-arr">→<span class="cap">response<br>returns ~61ms</span></div>
+          <div class="node node--event"><span class="tag">4</span><div class="t" style="margin-top:5px">📣 dispatch job</div><div class="d">MessageSent (queued)</div></div>
+          <div class="arr">→</div>
+          <div class="node node--queue"><span class="tag">5</span><div class="t" style="margin-top:5px">📮 Redis queue</div><div class="d">waits its turn</div></div>
+          <div class="arr">→</div>
+          <div class="node node--queue"><span class="tag">6</span><div class="t" style="margin-top:5px">🚚 Horizon worker</div><div class="d">runs broadcastWith()</div></div>
+          <div class="arr">→</div>
+          <div class="node node--pipe"><span class="tag">7</span><div class="t" style="margin-top:5px">📻 Reverb</div><div class="d">push over WebSocket</div></div>
+          <div class="arr">→</div>
+          <div class="node node--client"><span class="tag">8</span><div class="t" style="margin-top:5px">🧑 Agent B</div><div class="d">Echo.listen → appears, no refresh</div></div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="viz">
+          <div class="callout callout--fixed">
+            <span class="lbl">The split at step 3→4 is the whole point</span>
+            <p>The request finishes the moment the <b>save</b> is done and hands back a response (measured: <b>61 ms</b>). Steps 5–8 — the slow, failable delivery — happen <b>later, on a worker</b>. The user never waits on the network hop to Reverb.</p>
+          </div>
+          <div class="callout">
+            <span class="lbl">A separate, one-time path: the handshake</span>
+            <p>Before Agent B can hear <em>anything</em>, its page did a one-off <code>POST /broadcasting/auth</code> when it first subscribed — the bouncer approving the listener. That’s not per-message; it happens once on page load. (See <a class="inline" href="#calls">the 3 network calls</a>.)</p>
+          </div>
+        </div>
+        <div class="prose">
+          <h3>Say it in one breath</h3>
+          <p>A message is <b>saved</b> (a fact), <b>broadcast as a queued job</b>, <b>delivered over a WebSocket to another browser</b>, <b>only to agents whose business owns the conversation</b>, with the delivery done <b>off the request, on Redis, by Horizon</b>.</p>
+          <p>Two rules hide in that sentence, and both are interview gold:</p>
+          <ul>
+            <li><b>Persist, then broadcast — never the reverse.</b> If you announced first and the save failed, listeners would see a message that exists nowhere.</li>
+            <li><b>Queued, not inline.</b> Keep the HTTP response fast; let the slow, retry-able push happen on a worker.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ============ MODULES OVERVIEW ============ -->
+    <section id="modules-strip">
+      <div class="kicker">The build, module by module</div>
+      <p class="lead-in sub">Each module below added exactly one idea and left something you could <em>watch move</em>. Here’s the arc before we zoom in.</p>
+      <div class="timeline">
+        <div class="tl"><div class="m">M0</div><div class="h">Setup</div><div class="x">Reverb + Echo wired. Nothing visible yet — that’s correct.</div></div>
+        <div class="tl"><div class="m">M1</div><div class="h">Data model</div><div class="x">Tables + <code>business_id</code>, the tenant wall’s one column.</div></div>
+        <div class="tl"><div class="m">M2</div><div class="h">Broadcast</div><div class="x">Save → event → gate. The core.</div></div>
+        <div class="tl"><div class="m">M3</div><div class="h">Frontend</div><div class="x">A message crosses two windows. The payoff.</div></div>
+        <div class="tl"><div class="m">M4</div><div class="h">Isolation</div><div class="x">Cross-tenant subscribe → 403. No new code.</div></div>
+        <div class="tl"><div class="m">M5</div><div class="h">Redis + Horizon</div><div class="x">Delivery goes async; POST returns in ~60ms.</div></div>
+        <div class="tl"><div class="m">＋</div><div class="h">Pusher swap</div><div class="x">Pipe → hosted Pusher cloud. Config-only, no app logic.</div></div>
+      </div>
+    </section>
+
+    <!-- ============ M0 ============ -->
+    <section id="m0">
+      <h2><span class="num">M0</span> Setup — building the plumbing <span class="status done">✓ done</span></h2>
+      <div class="split">
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px"><code>php artisan install:broadcasting</code> wired up:</div>
+          <div class="flow v">
+            <div class="node node--pipe"><div class="t">📻 Reverb installed</div><div class="d">the switchboard program, binds :8080</div></div>
+            <div class="node"><div class="t">🔑 App keys in .env</div><div class="d">station address + secret; <code>VITE_</code> copies are the browser-safe ones</div></div>
+            <div class="node node--gate"><div class="t">🛂 routes/channels.php</div><div class="d">the bouncer file — empty for now</div></div>
+            <div class="node node--client"><div class="t">📻 resources/js/echo.js</div><div class="d">the browser receiver, pointed at Reverb</div></div>
+          </div>
+        </div>
+        <div class="prose">
+          <p>M0 installs the parts that make the open phone line work — no chat code yet. A fresh Laravel 11 app, the broadcasting installer wires <b>Reverb</b> (server) + <b>Echo</b> (browser client) together, and two JS libraries go in: <code>laravel-echo</code> (the receiver) and <code>pusher-js</code> (the low-level radio hardware Echo drives).</p>
+          <p>You run <b>two long-lived terminals</b> from here on: <code>npm run dev</code> (Vite, builds the frontend) and <code>php artisan reverb:start</code> (the switchboard). Each runs forever until stopped.</p>
+          <div class="callout callout--gotcha">
+            <span class="lbl">Gotcha — don’t re-run the installer</span>
+            <p>Its npm step needs a real terminal (a “TTY”) and errored in the automated shell; the frontend deps were finished by hand. Re-running <code>install:broadcasting</code> re-scaffolds everything. Don’t.</p>
+          </div>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“Reverb is a self-hosted WebSocket server that speaks the Pusher protocol, so everything I learned on it transfers to hosted Pusher config-free.”</p>
+          </div>
+        </div>
+      </div>
+      <p class="note"><b>Checkpoint = “nothing visible yet.”</b> That’s success. We built the plumbing (pipe, switchboard, receiver, empty bouncer). The chat page, tables, and UI are M1–M3.</p>
+    </section>
+
+    <!-- ============ M1 ============ -->
+    <section id="m1">
+      <h2><span class="num">M1</span> Data model — where the wall between companies lives <span class="status done">✓ done</span></h2>
+      <div class="split rev">
+        <div class="prose">
+          <p>Chatway is <b>one app used by thousands of separate companies</b>. Company X’s agents must never see Company Y’s chats — that’s <b>tenant isolation</b> (a “tenant” is one company renting space in the shared app).</p>
+          <p>We enforce it the cheapest way that works: a single column, <b><code>business_id</code></b>, stamped on every row that must stay private. Same number = same company = allowed. This is <b>row-level isolation</b> — everyone shares the same tables, a column decides who sees what. For a chat widget it’s the right call.</p>
+          <p><b>Messages carry no <code>business_id</code> of their own</b> — a message belongs to a conversation, and the conversation already carries the wall. Follow the chain: <code>message → conversation → business_id</code>.</p>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“The tenant key lives on the conversation; messages inherit isolation through their parent. I added it via a <b>separate additive migration</b> — never by editing a shipped one — and <code>index()</code>ed it because every tenant-scoped query filters on it.”</p>
+          </div>
+        </div>
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">Three tables, one wall</div>
+          <div class="flow v">
+            <div class="node node--gate wide"><div class="t">business_id = 1 &nbsp;·&nbsp; the wall</div></div>
+            <div class="arr">↓</div>
+            <div class="node wide"><div class="t">👥 users</div><div class="d">Agent A (#1), Agent B (#2) — both stamped <code>business_id = 1</code></div></div>
+            <div class="arr">↓</div>
+            <div class="node wide"><div class="t">💬 conversations</div><div class="d">#1 — <code>business_id = 1</code> (owns the thread)</div></div>
+            <div class="arr">↓</div>
+            <div class="node wide"><div class="t">✉️ messages</div><div class="d"><code>conversation_id</code> + <code>user_id</code> — no business_id needed, inherits the wall</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="callout">
+        <span class="lbl">The <code>login-as</code> shortcut</span>
+        <p>Private channels need a logged-in user (the bouncer inspects <code>$user->business_id</code>). Instead of a real login screen, a dev-only route <code>GET /login-as/{id}</code> logs you straight in — open <code>/login-as/1</code> in one window (Agent A), <code>/login-as/2</code> in another (Agent B). It’s guarded with <code>abort_unless(app()->environment('local'), 403)</code> — a password-free login is a gaping hole anywhere but your laptop.</p>
+      </div>
+    </section>
+
+    <!-- ============ M2 ============ -->
+    <section id="m2">
+      <h2><span class="num">M2</span> Broadcast the message — the core: save, then shout <span class="status done">✓ done</span></h2>
+      <p class="lead-in sub">This module teaches the whole thing; every other module wraps around it. Three files, three jobs.</p>
+
+      <div class="card scroll-x">
+        <div class="flow" style="flex-wrap:nowrap; min-width:min-content">
+          <div class="node node--event"><div class="t">a) MessageSent event</div><div class="d"><code>broadcastOn()</code> → which channel<br><code>broadcastWith()</code> → the payload<br><b>ShouldBroadcast</b> = queued</div></div>
+          <div class="arr">＋</div>
+          <div class="node node--save"><div class="t">b) POST /messages</div><div class="d">1 · validate<br>2 · <b>save</b> (a fact)<br>3 · <code>broadcast(...)->toOthers()</code></div></div>
+          <div class="arr">＋</div>
+          <div class="node node--gate"><div class="t">c) channels.php gate</div><div class="d">is your <code>business_id</code> == the conversation’s?<br>yes → on · no → 403</div></div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="viz">
+          <div class="callout callout--fixed">
+            <span class="lbl">Save first, then announce — non-negotiable order</span>
+            <p>Announce first and the save fails → listeners see a message that exists nowhere. Save-then-announce means the announcement is always about something real.</p>
+          </div>
+          <pre><span class="c">// the one word that makes it queued, not inline</span>
+class MessageSent implements <span class="k">ShouldBroadcast</span>
+<span class="c">//                     not ShouldBroadcastNow</span>
+
+<span class="c">// the gate = the entire multi-tenant wall</span>
+Broadcast::channel(<span class="g">'conversation.{id}'</span>, function ($user,$id){
+    $c = Conversation::find($id);
+    return $c && (int)$user->business_id === (int)$c->business_id;
+});</pre>
+        </div>
+        <div class="prose">
+          <h3>Two subtleties worth their own callout</h3>
+          <p><b><code>->toOthers()</code></b> = “send to everyone on the channel <em>except me</em>.” The sender’s window already shows the message it typed, so this avoids a duplicate. It identifies “me” by the browser’s <b>socket id</b>.</p>
+          <div class="callout callout--gotcha">
+            <span class="lbl">Gotcha — toOthers() + raw fetch</span>
+            <p>Echo adds the <code>X-Socket-Id</code> header automatically on <b>axios</b>, but <b>not on raw <code>fetch</code></b> (which M3 uses). Forget it and the sender’s window double-shows the message. Set it by hand:</p>
+            <p><code>headers: { 'X-Socket-Id': window.Echo.socketId() }</code></p>
+          </div>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“The channel-authorization callback <em>is</em> an authorization gate — that’s the Gates/Policies talking point — and the broadcast is queued, not inline, so the request stays fast.”</p>
+          </div>
+        </div>
+      </div>
+      <p class="note">At this point the broadcast lands as a <b>queued job</b>. Back in M2 the queue backend was the MySQL <code>jobs</code> table with no worker running — so the demo showed <code>messages 0→1</code> (saved instantly) and <code>jobs 0→1</code> (delivery deferred). The concept made visible.</p>
+    </section>
+
+    <!-- ============ M3 ============ -->
+    <section id="m3">
+      <h2><span class="num">M3</span> Frontend &amp; the payoff — watch it cross two windows <span class="status done">✓ done</span></h2>
+      <div class="split rev">
+        <div class="prose">
+          <p>The whole <code>chat.blade.php</code> page has exactly <b>two jobs</b>:</p>
+          <ul>
+            <li><b>RECEIVE</b> — <code>Echo.private('conversation.1').listen('MessageSent', appendMessage)</code></li>
+            <li><b>SEND</b> — <code>fetch('/messages', {method:'POST', …})</code>, no reload</li>
+          </ul>
+          <p>Two browser windows each do both; Reverb relays between them. Type in Agent A → it appears in Agent B with <b>no refresh</b>.</p>
+          <div class="callout callout--danger">
+            <span class="lbl">The XSS defense (a free security talking point)</span>
+            <p>Incoming bodies render with <b><code>textContent</code>, never <code>innerHTML</code></b>. Send the literal text <code>&lt;img src=x onerror=alert(1)&gt;</code> and <code>textContent</code> shows it as harmless text; <code>innerHTML</code> would <em>execute</em> it — stored XSS. Blade <code>{{ }}</code> auto-escapes server-side for the same reason.</p>
+          </div>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“Stored XSS is stopped at the render boundary — <code>textContent</code> / <code>{{ }}</code>, never <code>innerHTML</code> with user data.”</p>
+          </div>
+        </div>
+        <div class="viz">
+          <div class="card">
+            <div style="font-weight:650; font-size:13px; margin-bottom:12px">The payoff, live</div>
+            <div class="windows">
+              <div class="win">
+                <div class="bar"><span class="dot"></span> Agent A — /login-as/1</div>
+                <div class="body"><span class="msg">hello 👋</span><div style="font-size:11px;color:var(--ink-soft);margin-top:6px">typed &amp; sent →</div></div>
+              </div>
+              <div class="arr" style="font-size:22px">→</div>
+              <div class="win">
+                <div class="bar"><span class="dot"></span> Agent B — /login-as/2</div>
+                <div class="body"><span class="msg">hello 👋</span><div style="font-size:11px;color:var(--save);margin-top:6px">appeared, no refresh ✓</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="callout">
+            <span class="lbl">The CSRF token, two places</span>
+            <p><code>/broadcasting/auth</code>: Echo reads <code>&lt;meta name="csrf-token"&gt;</code> automatically. <code>POST /messages</code>: raw fetch sends nothing on its own, so we set <code>X-CSRF-TOKEN</code> by hand — forget it and you get a <b>419</b> (“page expired”), not a 403.</p>
+          </div>
+        </div>
+      </div>
+      <p class="note"><b>Modules 0–3 are the whole win.</b> A message crosses two windows and you can name all three network calls. Stop here if time is short — the rest is depth on top.</p>
+    </section>
+
+    <!-- ============ M4 ============ -->
+    <section id="m4">
+      <h2><span class="num">M4</span> Prove tenant isolation — the 403 you watch on purpose <span class="status done">✓ done</span></h2>
+      <p class="lead-in sub">The surprise: <b>no new code</b>. The wall was built in M2. M4 seeds a second company and watches the existing gate reject a trespasser — the exact concern the founder probed.</p>
+
+      <div class="split">
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">Same request, only the agent differs</div>
+          <div class="flow v">
+            <div class="node node--client wide"><div class="t">🧑 Agent A · business 1</div></div>
+            <div class="arr lbl-arr">↓<span class="cap">subscribe to conversation.1</span></div>
+            <div class="node node--gate wide"><div class="t">🛂 /broadcasting/auth</div><div class="d">business_id 1 == 1 ?</div></div>
+            <div class="arr">↓</div>
+            <div class="node node--save wide"><div class="t"><span class="ok">200</span> + signed token → on the channel</div></div>
+          </div>
+          <div style="height:14px"></div>
+          <div class="flow v">
+            <div class="node node--gate wide" style="border-style:dashed"><div class="t">🧑 Agent C · business 2</div><div class="d">the outsider</div></div>
+            <div class="arr lbl-arr">↓<span class="cap">subscribe to conversation.1</span></div>
+            <div class="node node--gate wide"><div class="t">🛂 /broadcasting/auth</div><div class="d">business_id 2 == 1 ? &nbsp;✗</div></div>
+            <div class="arr">↓</div>
+            <div class="node node--gate wide"><div class="t"><span class="no">403</span> AccessDeniedHttpException → hears nothing</div></div>
+          </div>
+        </div>
+        <div class="prose">
+          <h3>Why this proves the gate discriminates <em>by tenant</em></h3>
+          <p>If both attempts had 403’d, you’d only know the endpoint denies things. Because <b>A got 200 and C got 403 on the identical request</b>, you’ve proven the refusal comes from <em>who you are</em>, nothing else.</p>
+          <p>Two facts that made a browser-free <code>curl</code> proof possible:</p>
+          <ul>
+            <li><b><code>/broadcasting/auth</code> is plain Laravel HTTP</b>, not the WebSocket server. Reverb can be fully stopped and the check still fires.</li>
+            <li>The class running it is <b><code>PusherBroadcaster</code></b> even under Reverb — same Pusher code path, which is why the later Pusher swap is config-only.</li>
+          </ul>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line — your strongest card</span>
+            <p class="quote">“A row-level <code>business_id</code> check in the channel callback rejected a cross-tenant subscribe with a 403. That’s the right model for a chat widget — simplest thing that works, enforced on every subscribe. I’d escalate to schema- or database-per-tenant only with a real driver: hard compliance/data-residency, noisy-neighbour performance at scale, or per-tenant backup/restore. Starting heavier without that is over-engineering.”</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ M5 ============ -->
+    <section id="m5">
+      <h2><span class="num">M5</span> Make it async — Redis + Horizon (the JD’s named stack) <span class="status done">✓ done</span></h2>
+      <p class="lead-in sub">Sending a message does two things of very different speed. M5 splits them so the request never waits on the slow one.</p>
+
+      <div class="split rev">
+        <div class="prose">
+          <ul>
+            <li><b>Save the row</b> — fast, must happen now, the user is waiting.</li>
+            <li><b>Push the broadcast to every listener</b> — slower, can fail, can retry; no HTTP request should wait on it.</li>
+          </ul>
+          <p>So the request does the save and returns; the push is handed to a <b>background worker</b>. The pipe that carries “do this later” work is a <b>queue</b>.</p>
+          <p><b>Redis</b> = an in-memory store used as the queue backend (fast because it’s in memory). <b>Horizon</b> = a worker manager + dashboard for Redis queues; <code>php artisan horizon</code> boots workers and gives you <code>/horizon</code> to watch throughput and failures. It replaces plain <code>queue:work</code>.</p>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“Broadcasting is queued so the request stays fast and the slow, failable push happens on a worker. Backend is Redis; Horizon manages the pool and gives retries, backpressure, and a dashboard. That decoupling is why you never <code>ShouldBroadcastNow</code> on a hot path.”</p>
+          </div>
+        </div>
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">The measured proof (one POST, timed)</div>
+          <div class="flow v">
+            <div class="node node--save wide"><div class="t">POST /messages → <span class="ok">HTTP 200 in 0.061s</span></div><div class="d">request done in 61 milliseconds</div></div>
+            <div class="arr lbl-arr">↓<span class="cap">later, on the worker</span></div>
+            <div class="node node--queue wide"><div class="t">worker START broadcasting #1 &nbsp;@ 12:10:34.442</div></div>
+            <div class="arr">↓</div>
+            <div class="node node--queue wide"><div class="t">worker DONE broadcasting #1 &nbsp;@ 12:10:37.367</div><div class="d">~3s of worker time — the request never waited</div></div>
+          </div>
+          <div class="callout callout--gotcha" style="margin-top:14px">
+            <span class="lbl">That 3s is fake — demo only</span>
+            <p>A <code>sleep(3)</code> lives inside <code>broadcastWith()</code>, which runs <b>on the worker</b>, to make the async gap visible. Remove it before calling this code clean. Also: <b>Horizon caches code at boot</b> — after editing an event, <code>horizon:terminate</code> then start it again.</p>
+          </div>
+        </div>
+      </div>
+      <div class="callout">
+        <span class="lbl">predis vs phpredis</span>
+        <p>Locally we used <b>predis</b> (pure PHP, zero setup — a <code>composer require</code>). Production uses the <b>phpredis</b> C-extension for throughput (needs PECL + compilation). Same code above it. <code>REDIS_CLIENT=predis</code>.</p>
+      </div>
+    </section>
+
+    <!-- ============ PUSHER SWAP ============ -->
+    <section id="pusher">
+      <h2><span class="num">＋P</span> Pusher swap — point the pipe at the cloud <span class="status done">✓ done 2026-07-14</span></h2>
+      <p class="lead-in sub">Reverb and Pusher speak the <b>same protocol</b>, so switching is like changing which phone company carries the call — the phones, the conversation, and the bouncer are untouched. <b>Zero application logic changed.</b></p>
+
+      <div class="split">
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">Before → after: only the pipe moved</div>
+          <div class="flow v">
+            <div class="node node--pipe wide" style="border-style:dashed"><div class="t">was: 📻 Reverb · self-hosted</div><div class="d"><code>localhost:8080</code>, you run the server</div></div>
+            <div class="arr lbl-arr">↓<span class="cap">config-only swap</span></div>
+            <div class="node node--pipe wide"><div class="t">now: ☁️ Pusher · hosted cloud</div><div class="d"><code>ws-ap2.pusher.com</code>, no server to run</div></div>
+          </div>
+          <p class="note" style="margin-top:12px">Same <code>MessageSent</code> event, <code>POST /messages</code>, <code>channels.php</code> gate, and <code>/broadcasting/auth</code> handshake — Laravel authorizes and publishes through the same <code>PusherBroadcaster</code> either way.</p>
+        </div>
+        <div class="prose">
+          <h3>Three layers must all flip (each caches config at boot)</h3>
+          <div class="flow v">
+            <div class="node node--save wide"><div class="t">1 · Web app — <code>.env</code></div><div class="d"><code>BROADCAST_CONNECTION=pusher</code> + <code>PUSHER_*</code> (cluster ap2) → <code>config:clear</code></div></div>
+            <div class="node node--queue wide"><div class="t">2 · Worker — Horizon</div><div class="d">it publishes the broadcast; restart it so it picks up the new config</div></div>
+            <div class="node node--client wide"><div class="t">3 · Frontend — <code>echo.js</code> + <code>npm run build</code></div><div class="d"><code>broadcaster:'pusher'</code> + cluster; the built bundle bakes in <code>8080</code> until rebuilt</div></div>
+          </div>
+          <div class="callout callout--fixed">
+            <span class="lbl">Two steps we didn’t need</span>
+            <p>No <code>composer require</code> — <code>pusher/pusher-php-server</code> was already installed via Reverb. No <code>config/broadcasting.php</code> edit — the <code>pusher</code> block ships with Laravel.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout--gotcha">
+        <span class="lbl">The trap — “empty Pusher console, but my message delivered?”</span>
+        <p>That’s a <b>false positive</b>. The sender <em>always</em> sees its own message (<code>->toOthers()</code> skips the sender; the page appends locally), and <code>/chat</code> renders DB history on load — neither is a real-time round-trip. Verify the <b>actual</b> pipe: DevTools → <b>WS</b> tab reads <code>ws-ap2.pusher.com</code> (not <code>localhost:8080</code>), and the Pusher <b>Debug Console</b> shows an <code>API Message</code> on <code>private-conversation.1</code>. We proved it by firing a real broadcast and watching Horizon publish with 0 errors.</p>
+      </div>
+      <div class="callout callout--interview">
+        <span class="lbl">Interview line</span>
+        <p class="quote">“The swap is config-only because Reverb already speaks the Pusher protocol — same <code>PusherBroadcaster</code> underneath. So I pick per project: hosted <b>Pusher</b> for zero-ops and pay-per-connection, self-hosted <b>Reverb</b> to own the infra and dodge per-message pricing, raw <b>Socket.io</b> only off a Laravel stack. The app code doesn’t care which carries the call.”</p>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ============ TRANSITIONS ============ -->
+    <section id="transitions">
+      <h2><span class="num">EVOLVED</span> How the app improved — and the thing everyone confuses</h2>
+      <p class="lead-in sub">There are <b>two separate systems</b> here. Keeping them apart is a senior-level clarity point — and only one of them ever changed.</p>
+
+      <div class="split">
+        <div class="viz card">
+          <div class="flow v">
+            <div class="node node--pipe wide"><div class="t">A) The delivery pipe = Reverb</div><div class="d">shoves the message down an open connection into the other browser. Here since <b>M0</b>, never changed. The <b>phone line</b>.</div></div>
+            <div style="height:10px"></div>
+            <div class="node node--queue wide"><div class="t">B) The “do it later” = queue + worker</div><div class="d">drop a job on a queue, a worker delivers it into pipe A. The <b>outbox + courier</b>. This is what <b>transitioned</b>.</div></div>
+          </div>
+        </div>
+        <div class="prose">
+          <p>“We went from <code>queue:work</code> to Redis/Horizon” really means: <b>we swapped the outbox and upgraded the courier.</b> The pipe (Reverb) was never part of that swap.</p>
+          <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Stage</th><th>Outbox</th><th>Courier</th></tr></thead>
+            <tbody>
+              <tr><td>First working version <span class="sub">(M2–M4)</span></td><td><code>database</code> — MySQL <code>jobs</code> table</td><td><code>php artisan queue:work</code></td></tr>
+              <tr><td>Now <span class="sub">(M5)</span></td><td><b>Redis</b> — in memory (fast)</td><td><b><code>php artisan horizon</code></b> + <code>/horizon</code> dashboard</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p class="note">Why bother? Keep the HTTP response instant (61ms) and hand the slow, retry-able delivery to the worker. If delivery fails, the request already succeeded and the job retries on its own. That’s the JD’s exact phrase: <em>“Redis queues, Horizon, event broadcasting.”</em></p>
+        </div>
+      </div>
+
+      <h3>What each module added, at a glance</h3>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Module</th><th>What we added</th><th>The observable “watch it move”</th></tr></thead>
+        <tbody>
+          <tr><td><b>0 · Setup</b></td><td>Laravel + Reverb + Echo wired together</td><td>Reverb binds :8080; frontend builds. Nothing visible yet.</td></tr>
+          <tr><td><b>1 · Data model</b></td><td><code>conversations</code>, <code>messages</code>, <code>business_id</code> on users; seeder; <code>/login-as</code></td><td>Log in as either agent; both share conversation 1.</td></tr>
+          <tr><td><b>2 · Broadcast</b></td><td><code>MessageSent</code>, <code>POST /messages</code> (save→broadcast), the <code>channels.php</code> gate</td><td>Broadcast lands as a queued job (<code>jobs</code> table).</td></tr>
+          <tr><td><b>3 · Frontend</b></td><td><code>/chat</code>: fetch send, <code>Echo.listen</code> receive, <code>textContent</code> render</td><td>A message crosses two windows, no refresh. Name all 3 calls.</td></tr>
+          <tr><td><b>4 · Isolation</b></td><td>A second business + Agent C. <b>No new code.</b></td><td>Agent C → <span class="no">403</span>, Agent A → <span class="ok">200</span>. Same request.</td></tr>
+          <tr><td><b>5 · Async</b></td><td>Queue MySQL→<b>Redis</b>, worker <code>queue:work</code>→<b>Horizon</b></td><td>POST returns ~60ms; message arrives ~3s later via the worker.</td></tr>
+          <tr><td><b>＋ Pusher</b></td><td>Delivery pipe Reverb→hosted <b>Pusher</b> (ap2). Config-only, no app logic.</td><td>WS now <code>ws-ap2.pusher.com</code>; each event shows in the Debug Console.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- ============ THE 3 CALLS ============ -->
+    <section id="calls">
+      <h2><span class="num">3 CALLS</span> The network traffic one message makes</h2>
+      <p class="lead-in sub">Open DevTools → Network, send one message, and you’ll see these — the whole real-time story in three requests.</p>
+
+      <div class="split rev">
+        <div class="prose">
+          <ol>
+            <li><b><code>POST /messages</code></b> — your send. Saves the row, queues the broadcast, returns instantly with the message as JSON.</li>
+            <li><b><code>POST /broadcasting/auth</code></b> — the <b>handshake</b>, fired <em>once</em> when the page first subscribes (not per message). The bouncer runs the <code>channels.php</code> callback and answers “yes, join <code>conversation.1</code>” (or 403). Look for it right after page load.</li>
+            <li><b>The WebSocket frame</b> — in the <b>WS</b> tab, click the <code>ws://localhost:8080</code> connection → Messages. When the worker delivers, the <code>MessageSent</code> frame arrives carrying <code>{id, body, user_id}</code>. <em>That</em> frame is the message landing in the other browser.</li>
+          </ol>
+          <p class="note">If you can point at these three and name each, the core learning outcome is met.</p>
+        </div>
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">Two timelines: subscribe once, then send</div>
+          <div class="flow v">
+            <div class="node node--gate wide"><span class="tag">once · on load</span><div class="t" style="margin-top:5px">POST /broadcasting/auth</div><div class="d">handshake — bouncer approves the listener</div></div>
+            <div style="height:12px; border-left:2px dashed var(--line-strong); margin-left:16px"></div>
+            <div class="node mono wide"><span class="tag">per message</span><div class="t" style="margin-top:5px">POST /messages</div><div class="d">save + queue the broadcast → 200 JSON</div></div>
+            <div class="arr">↓</div>
+            <div class="node node--pipe wide"><span class="tag">per message</span><div class="t" style="margin-top:5px">⇄ WS frame · MessageSent</div><div class="d">the event arrives in the other browser</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ THE WALL ============ -->
+    <section id="wall">
+      <h2><span class="num">WALL</span> The tenant gate, in one function</h2>
+      <div class="split">
+        <div class="viz">
+          <pre>Broadcast::channel(<span class="g">'conversation.{id}'</span>, function ($user,$id){
+    $conversation = Conversation::find($id);
+    return $conversation !== null
+        && (int)$user->business_id === (int)$conversation-&gt;business_id;
+});</pre>
+          <div class="callout">
+            <span class="lbl">Read it in one sentence</span>
+            <p>“You may listen to this conversation only if <b>your business is the business that owns it</b>.” Return <b>true</b> → you join. Return <b>false</b> → <b>403</b>, you never hear a byte. It runs on <em>every</em> subscribe attempt.</p>
+          </div>
+        </div>
+        <div class="prose">
+          <h3>When row-level stops being enough</h3>
+          <p>This is the whole multi-tenant boundary — one comparison. For a chat widget, row-level is the right default: simplest thing that works, enforced on every subscribe. The senior signal is knowing <em>when</em> you’d escalate:</p>
+          <ul>
+            <li><b>Schema-per-tenant / DB-per-tenant</b> only for hard compliance or data-residency isolation, noisy-neighbour performance at real scale, or per-tenant backup/restore needs.</li>
+            <li>Each buys stronger isolation at real operational cost. Starting there without a driver is over-engineering.</li>
+          </ul>
+          <p class="note">Home turf. Lean into it — naming the default <em>and</em> the escalation trigger is what separates a senior answer from a textbook one.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ REVIEW FINDINGS ============ -->
+    <section id="review">
+      <h2><span class="num">REVIEW</span> What a code read-through caught (2026-07-11)</h2>
+      <p class="lead-in sub">One real hole (fixed same day) and two design gaps left as lessons — exactly what a chat-company interviewer probes.</p>
+
+      <!-- Finding 1 -->
+      <h3>1 · Fixed — the tenant wall had an open door on the <em>write</em> side</h3>
+      <div class="split">
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">Three doors — only two were guarded</div>
+          <div class="flow v">
+            <div class="node node--client wide"><div class="t">📖 Read the page (/chat)</div><div class="d">scoped to your business ✓</div></div>
+            <div class="node node--gate wide"><div class="t">👂 Listen live (channel gate)</div><div class="d">403s outsiders ✓</div></div>
+            <div class="node node--gate wide" style="border-style:dashed"><div class="t">✍️ Write (POST /messages)</div><div class="d">only checked the id <b>existed</b> — not that you <b>own</b> it ✗</div></div>
+          </div>
+          <p class="note" style="margin-top:12px">Analogy: a receptionist checked IDs at the door for anyone coming to <b>listen</b> — but the <b>mail slot let anyone drop a note inside</b>. Agent C (business 2) could post into conversation 1 and have it broadcast to business 1’s agents.</p>
+        </div>
+        <div class="prose">
+          <div class="callout callout--fixed">
+            <span class="lbl">The fix — scope the lookup to the sender’s business</span>
+            <pre style="margin:8px 0 0">$conversation = Conversation::where('id',$id)
+    ->where('business_id',$request-&gt;user()-&gt;business_id)
+    ->firstOrFail(); <span class="c">// outsider ⇒ 404</span></pre>
+            <p>A conversation you don’t own now behaves exactly like one that doesn’t exist — the request dies with a <b>404</b> before anything saves. (404 over 403 is a bonus: it doesn’t reveal which ids exist.)</p>
+          </div>
+          <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Logged in as</th><th>POSTing into</th><th>Before</th><th>After</th></tr></thead>
+            <tbody>
+              <tr><td>Agent C (biz 2)</td><td>conv 1 (biz 1)</td><td>200 — landed</td><td class="no">404 — nothing saved</td></tr>
+              <tr><td>Agent C (biz 2)</td><td>conv 2 (his own)</td><td>200</td><td class="ok">200</td></tr>
+              <tr><td>Agent A (biz 1)</td><td>conv 1 (his own)</td><td>200</td><td class="ok">200</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line — a found-and-fixed hole beats a build that was never wrong</span>
+            <p class="quote">“I gated the subscribe handshake first and left the write path open — my own review caught it. Fix: scope every lookup by tenant so a foreign resource 404s. The takeaway I keep: check isolation <b>per entry point</b> — read, write, and subscribe are three separate doors.”</p>
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- Finding 2 -->
+      <h3>2 · Documented — messages can be silently missed (the catch-up problem)</h3>
+      <div class="split rev">
+        <div class="prose">
+          <p>A broadcast is a <b>loudspeaker announcement</b> — it only reaches sockets connected at that instant. Two windows drop messages:</p>
+          <ul>
+            <li><b>Page-load gap</b> — <code>/chat</code> renders old messages, <em>then</em> JS connects and listens. A message sent in that half-second is too new for the render, too old for the listener — it belongs to neither.</li>
+            <li><b>Reconnect gap</b> — the WebSocket drops in real life (lid closed, wifi blip). It reconnects, but anything sent <em>during</em> the outage went to a pipe that wasn’t there.</li>
+          </ul>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“Broadcast is fire-and-forget, so I never treat the socket as source of truth: the DB is truth, the socket is the fast path, and the client reconciles with a catch-up fetch keyed on the last message id, deduping by id. One mechanism closes both the page-load and reconnect gaps.”</p>
+          </div>
+        </div>
+        <div class="viz card">
+          <div style="font-weight:650; font-size:13px; margin-bottom:12px">The fix — a catch-up fetch (not built)</div>
+          <div class="flow v">
+            <div class="node wide"><div class="t">1 · remember the last id you have</div><div class="d">e.g. #42</div></div>
+            <div class="arr">↓</div>
+            <div class="node node--save wide"><div class="t">2 · on every (re)connect, ask HTTP</div><div class="d"><code>GET /messages?conversation_id=1&amp;after=42</code></div></div>
+            <div class="arr">↓</div>
+            <div class="node node--pipe wide"><div class="t">3 · append results, resume live listening</div></div>
+            <div class="arr">↓</div>
+            <div class="node node--event wide"><div class="t">4 · dedupe by id</div><div class="d">a message can now arrive twice (fetch + live) — skip ids you already have. This is why <code>broadcastWith</code> carries the id.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- Finding 3 -->
+      <h3>3 · Documented — the history query is unbounded (dies at scale)</h3>
+      <div class="split">
+        <div class="viz card">
+          <div class="flow v">
+            <div class="node node--gate wide"><div class="t">Today: <code>messages()->orderBy('id')->get()</code></div><div class="d">fetch <b>every</b> message ever. 10 rows: fine. 200k rows: the page hangs.</div></div>
+            <div class="arr lbl-arr">↓<span class="cap">fix</span></div>
+            <div class="node node--save wide"><div class="t">Initial load: newest 50</div><div class="d"><code>latest('id')->limit(50)->get()->reverse()</code></div></div>
+            <div class="arr">↓</div>
+            <div class="node node--save wide"><div class="t">“Load older”: keyset pagination</div><div class="d"><code>where('id','&lt;',$oldestSeen)->latest('id')->limit(50)</code></div></div>
+          </div>
+        </div>
+        <div class="prose">
+          <p><b>Keyset (cursor) pagination</b> = “give me 50 before this bookmark.” It jumps straight to the id via the index and stays fast at any depth. <b>Offset</b> (“skip 150,000 rows”) makes the DB <em>walk past</em> everything it skips — page 3,000 is brutal. For an ever-growing feed like chat, keyset is the right answer.</p>
+          <div class="callout callout--gotcha">
+            <span class="lbl">The index nugget hiding in our migration</span>
+            <p><code>messages.conversation_id</code> <b>is</b> indexed even though we never wrote <code>->index()</code> — MySQL’s InnoDB auto-indexes every foreign key. <b>PostgreSQL does not.</b> Port this schema to Postgres and every “messages for conversation X” query silently becomes a full-table scan until you add the index yourself.</p>
+          </div>
+          <div class="callout callout--interview">
+            <span class="lbl">Interview line</span>
+            <p class="quote">“Chat history is unbounded, so the page never loads it whole — newest slice first, keyset pagination backwards, never offset, because offset cost grows with depth. And I check FK columns are actually indexed per engine — MySQL auto-indexes foreign keys, Postgres doesn’t.”</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ============ RUN IT ============ -->
+    <section id="run">
+      <h2><span class="num">RUN</span> Start it yourself, from cold</h2>
+      <p class="lead-in sub">One background service + four terminals, all from the project root.</p>
+      <pre><span class="c"># 0) Redis — the queue backend (stays up as a background service)</span>
+brew services start redis
+redis-cli ping                 <span class="c"># must print: PONG</span>
+
+<span class="c"># 1) The web app (HTTP)         → http://localhost:8000</span>
+php artisan serve
+<span class="c"># 2) Vite — builds the frontend JS (Echo, pusher-js)</span>
+npm run dev
+<span class="c"># 3) Reverb — ONLY for the self-hosted driver; SKIP on Pusher (current default)</span>
+php artisan reverb:start
+<span class="c"># 4) Horizon — drains queued broadcasts off Redis</span>
+php artisan horizon</pre>
+      <div class="split">
+        <div class="prose">
+          <h3>In the browser</h3>
+          <ol>
+            <li>Normal window → <code>/login-as/1</code> → <b>Agent A</b>, lands on <code>/chat</code>.</li>
+            <li>Incognito window → <code>/login-as/2</code> → <b>Agent B</b> (separate session).</li>
+            <li>Type in A, Send → appears in B, no refresh. Flip it.</li>
+            <li>DevTools → Network: watch <code>POST /messages</code>, <code>POST /broadcasting/auth</code>, and the WS frame.</li>
+            <li><code>/horizon</code> → Recent Jobs → watch the <code>MessageSent</code> job run (~3s with the demo sleep).</li>
+          </ol>
+        </div>
+        <div class="viz">
+          <div class="callout">
+            <span class="lbl">Two demos worth doing</span>
+            <p><b>Isolation (M4):</b> <code>/login-as/3</code> = Agent C. In the console: <code>window.Echo.private('conversation.1')</code> — watch <code>/broadcasting/auth</code> return <b>403</b>. Agent A doing the same gets <b>200</b>.</p>
+            <p><b>Queue made visible (M5):</b> stop Horizon (<code>horizon:terminate</code>), send a message → it saves and shows locally but never reaches the other window (job waits in Redis). Start Horizon → it drains and the message appears.</p>
+          </div>
+          <p class="note">Health checks: <code>redis-cli ping</code> (PONG), <code>php artisan horizon:status</code> (running), Reverb log shows a client connect when <code>/chat</code> loads.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <span class="lbl">What’s next</span>
+        <p><b>Pusher driver swap</b> — <b>done ✓</b> (2026-07-14; the pipe now points at hosted Pusher, cluster ap2 — see the <a class="inline" href="#pusher">Pusher swap section</a>). Remaining: prep track A (scale &amp; performance — seed 200k+ messages, highest JD weight), B (security depth), C (webhooks/integrations). Module 6 (typing indicator via presence + whisper) only if flying. Cleanup: remove the demo <code>sleep(3)</code> in <code>broadcastWith()</code>.</p>
+      </div>
+    </section>
+
+    <!-- ============ GLOSSARY ============ -->
+    <section id="glossary">
+      <h2><span class="num">TERMS</span> Glossary — one line each</h2>
+      <div class="tbl-wrap">
+      <table>
+        <tbody>
+          <tr><td><b>WebSocket</b></td><td>An always-open two-way connection between browser and server; the “open phone line.”</td></tr>
+          <tr><td><b>Broadcasting</b></td><td>The server pushing an event out to listeners over that connection.</td></tr>
+          <tr><td><b>Event (broadcastable)</b></td><td>An object (<code>MessageSent</code>) describing what happened; <code>ShouldBroadcast</code> makes Laravel push it over WebSockets.</td></tr>
+          <tr><td><b>ShouldBroadcast vs …Now</b></td><td>Queued (handed to a worker) vs inline (sent during the request). We use queued.</td></tr>
+          <tr><td><b>broadcastOn() / broadcastWith()</b></td><td>Which channel to shout on / the exact payload the client receives.</td></tr>
+          <tr><td><b>Channel</b></td><td>A named stream listeners subscribe to; <b>private</b> channels require authorization.</td></tr>
+          <tr><td><b>Reverb</b></td><td>Laravel’s first-party WebSocket server (the switchboard). Speaks the Pusher protocol.</td></tr>
+          <tr><td><b>Echo</b></td><td>The browser library that subscribes to channels and reacts to events (the receiver).</td></tr>
+          <tr><td><b>Driver</b></td><td>Which switchboard brand (reverb / pusher / ably); swappable, same code.</td></tr>
+          <tr><td><b>/broadcasting/auth</b></td><td>The plain-HTTP endpoint the browser hits to ask “may I join this private channel?”; the bouncer answers 200+token or 403.</td></tr>
+          <tr><td><b>Channel callback</b> (channels.php)</td><td>The closure that authorizes/denies a subscription; here it <em>is</em> the tenant wall.</td></tr>
+          <tr><td><b>->toOthers()</b></td><td>Broadcast to everyone on the channel except the sender (identified by socket id).</td></tr>
+          <tr><td><b>X-Socket-Id</b></td><td>Identifies the sender’s socket so <code>toOthers()</code> can skip it; must be set by hand with raw <code>fetch</code>.</td></tr>
+          <tr><td><b>CSRF token</b></td><td>A per-session secret proving a request came from your own page; missing on <code>/messages</code> ⇒ 419.</td></tr>
+          <tr><td><b>textContent vs innerHTML</b></td><td>Render as text (safe) vs render as HTML (executes scripts — stored-XSS risk).</td></tr>
+          <tr><td><b>Tenant / row-level isolation</b></td><td>Many companies share one app; a <code>business_id</code> column + a check keeps their data invisible to each other. The default model.</td></tr>
+          <tr><td><b>Queue / job / worker</b></td><td>Deferred work stored on a queue and run later by a worker process.</td></tr>
+          <tr><td><b>Redis</b></td><td>In-memory store used here as the fast queue backend.</td></tr>
+          <tr><td><b>Horizon</b></td><td>Laravel’s worker manager + dashboard (<code>/horizon</code>) for Redis queues; replaces <code>queue:work</code>.</td></tr>
+          <tr><td><b>predis / phpredis</b></td><td>Two ways PHP talks to Redis: pure-PHP package (easy) vs C-extension (fast).</td></tr>
+          <tr><td><b>Migration</b></td><td>Versioned code that builds/changes tables; forward-only once it has shipped.</td></tr>
+          <tr><td><b>Keyset / offset pagination</b></td><td>“Next 50 after this id” (uses the index, fast at any depth) vs “skip N rows” (pays for every skipped row).</td></tr>
+          <tr><td><b>Catch-up fetch</b></td><td>On (re)connect, asking HTTP for every message after your last id, so nothing missed during a gap stays missing.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <footer>
+      Realtime Chat — a throwaway learning build for Chatway senior-backend prep · Modules 0–5 complete + code review.<br>
+      Source of truth: <code>PRD/progress.md</code>. Per-module deep dives: <code>PRD/learning/module-N.md</code>. This page distils all of them into one visual pass.
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Theme toggle (defaults to system; click cycles to explicit light/dark)
+  (function(){
+    var btn = document.getElementById('themeBtn');
+    var root = document.documentElement;
+    function set(t){ if(t){root.setAttribute('data-theme',t);} else {root.removeAttribute('data-theme');} }
+    var saved = null; try{ saved = localStorage.getItem('rtc-theme'); }catch(e){}
+    if(saved) set(saved);
+    btn.addEventListener('click', function(){
+      var cur = root.getAttribute('data-theme');
+      var next = cur === 'dark' ? 'light' : 'dark';
+      set(next);
+      try{ localStorage.setItem('rtc-theme', next); }catch(e){}
+    });
+  })();
+
+  // Mirror TOC into the mobile nav
+  (function(){
+    var src = document.getElementById('toc');
+    var dst = document.getElementById('mobnav-links');
+    if(src && dst){ dst.innerHTML = src.innerHTML; }
+  })();
+
+  // Active-section highlight in the sidebar
+  (function(){
+    var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+    var map = {};
+    links.forEach(function(a){ var id=a.getAttribute('href').slice(1); map[id]=a; });
+    var sections = Object.keys(map).map(function(id){ return document.getElementById(id); }).filter(Boolean);
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){
+          links.forEach(function(a){ a.classList.remove('active'); });
+          var a = map[en.target.id];
+          if(a) a.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px', threshold: 0 });
+    sections.forEach(function(s){ obs.observe(s); });
+  })();
+</script>
+</body>
+</html>
