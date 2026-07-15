@@ -1,3 +1,6 @@
+<img width="600" height="802" alt="Screenshot 2026-07-15 at 12 29 17 PM" src="https://github.com/user-attachments/assets/1311926e-9bcb-4259-945f-b99ddf0baf7e" />
+<img width="594" height="800" alt="Screenshot 2026-07-15 at 12 29 47 PM" src="https://github.com/user-attachments/assets/f85c7852-b0be-43c0-bfd5-73648b48bc28" />
+
 # laravel-reverb-chat
 
 A deliberately minimal **multi-tenant realtime chat** built to watch a message travel end to end:
